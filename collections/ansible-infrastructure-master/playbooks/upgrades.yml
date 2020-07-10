@@ -1,0 +1,27 @@
+---
+- hosts: all
+  serial: 2
+  tasks:
+    - name: Perform apt upgrades
+      become: true
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+      apt:
+        update_cache: true
+        upgrade: dist
+      notify:
+        - Reboot
+
+    - name: Perform yum upgrades
+      become: true
+      when: ansible_distribution == 'CentOS'
+      yum:
+        name: '*'
+        state: latest
+      notify:
+        - Reboot
+
+  handlers:
+    - name: Reboot
+      when: "'physical' not in group_names and not ci_host"
+      become: true
+      reboot:

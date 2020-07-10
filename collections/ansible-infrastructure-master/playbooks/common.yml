@@ -1,0 +1,188 @@
+---
+- hosts: all,!clients
+  roles:
+    - { role: checkmk_agent }
+
+- hosts: all
+  tasks:
+    - name: Install common apt packages
+      become: true
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+      apt:
+        pkg:
+          - vim
+          - git
+          - tmux
+          - htop
+          - dnsutils
+          - ack-grep
+          - stow
+          - zsh
+          - build-essential
+          - python-dev
+          - python3-dev
+          - cmake
+          - curl
+          - virtualenvwrapper
+          - moreutils
+          - neovim
+          - python-neovim
+          - mosh
+
+    - name: Install common pacman packages
+      become: true
+      when: ansible_distribution == 'Archlinux'
+      pacman:
+        name:
+          - vim
+          - git
+          - tmux
+          - htop
+          - bind-tools
+          - ack
+          - stow
+          - zsh
+          - cmake
+          - clang
+          - curl
+          - python-virtualenvwrapper
+          - moreutils
+          - neovim
+          - python-pynvim
+          - mosh
+
+    - name: Set up authorized keys
+      become: true
+      authorized_key:
+        user: '{{ admin_user }}'
+        state: present
+        key: '{{ item }}'
+      with_file:
+        - public_keys/aragorn.pub
+        - public_keys/arathorn.pub
+        - public_keys/work.pub
+        - public_keys/phone.pub
+
+    - name: Remove old authorized keys
+      become: true
+      authorized_key:
+        user: '{{ admin_user }}'
+        state: absent
+        key: '{{ item }}'
+      with_file:
+        - public_keys/riker.pub.deprecated
+
+    - name: Install cron wrapper script
+      become: true
+      copy:
+        src: scripts/log-output
+        dest: /usr/local/bin/log-output
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Create cron log file
+      become: true
+      file:
+        name: /var/log/cron.log
+        state: touch
+        mode: 0666
+
+- hosts: all,!cloud,!rpis
+  serial: 2
+  tasks:
+    - name: Copy deploy key
+      become: true
+      become_user: "{{ admin_user }}"
+      copy:
+        src: dotfiles_deploy_key
+        dest: "/home/{{ admin_user }}/.dotfiles_deploy_key"
+        owner: "{{ admin_user }}"
+        group: "{{ admin_user }}"
+        mode: 0600
+
+    - name: Clone dotfiles repo
+      become: true
+      become_user: "{{ admin_user }}"
+      git:
+        repo: "{{ dotfiles_repo }}"
+        dest: "/home/{{ admin_user }}/dotfiles"
+        version: master
+        accept_hostkey: true
+        ssh_opts: "-i /home/{{ admin_user }}/.dotfiles_deploy_key"
+
+    - name: Unstow dotfiles
+      become: true
+      become_user: "{{ admin_user }}"
+      command:
+        chdir: "/home/{{ admin_user }}/dotfiles"
+        cmd: "stow {{ item.name }}"
+        creates: "{{ item.file }}"
+      with_items:
+        - { name: ssh, file: "/home/{{ admin_user }}/.ssh/config"}
+        - { name: vim, file: "/home/{{ admin_user }}/.vimrc"}
+        - { name: tmux, file: "/home/{{ admin_user }}/.tmux.conf"}
+        - { name: neovim, file: "/home/{{ admin_user }}/.config/nvim/init.vim"}
+
+    - name: Add dotfile update cronjob
+      become: true
+      cron:
+        name: "Update dotfiles"
+        minute: "*/15"
+        job: "/usr/local/bin/log-output /home/{{ admin_user }}/dotfiles/update.sh"
+        user: "{{ admin_user }}"
+
+    - name: Install vundle
+      become: true
+      become_user: "{{ admin_user }}"
+      git:
+        repo: https://github.com/VundleVim/Vundle.vim.git
+        dest: "/home/{{ admin_user }}/.vim/bundle/Vundle.vim"
+        version: master
+
+    - name: Install vim plugins
+      become: true
+      become_user: "{{ admin_user }}"
+      shell:
+        cmd: 'vim -E -s -c "source /home/{{ admin_user }}/.vimrc" -c PluginInstall -c qa || touch /home/{{ admin_user }}/.vim/plugins_installed'
+        creates: "/home/{{ admin_user }}/.vim/plugins_installed"
+
+    - name: Build ycm_core
+      become: true
+      become_user: "{{ admin_user }}"
+      command:
+        cmd: "./install.py --clang-completer {% if ansible_distribution == 'Archlinux' %}--system-libclang{% endif %}"
+        chdir: "/home/{{ admin_user }}/.vim/bundle/YouCompleteMe"
+        creates: "/home/{{ admin_user }}/.vim/bundle/YouCompleteMe/third_party/ycmd/ycm_core.so"
+      environment:
+        YCM_CORES: 1
+
+    - name: Install oh-my-zsh
+      become: true
+      become_user: "{{ admin_user }}"
+      shell:
+        cmd: sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        creates: "/home/{{ admin_user }}/.oh-my-zsh"
+      register: ohmyzsh
+
+    - name: Remove default zshrc
+      become: true
+      become_user: "{{ admin_user }}"
+      file: # noqa 503
+        name: "/home/{{ admin_user }}/.zshrc"
+        state: absent
+      when: ohmyzsh.changed
+
+    - name: Unstow zsh config
+      become: true
+      become_user: "{{ admin_user }}"
+      command:
+        chdir: "/home/{{ admin_user }}/dotfiles"
+        cmd: "stow zsh"
+        creates: "/home/{{ admin_user }}/.zshrc"
+
+    - name: Change shell to zsh
+      become: true
+      user:
+        name: "{{ admin_user }}"
+        shell: /usr/bin/zsh

@@ -1,0 +1,5 @@
+---
+ - name: checkmk_agent
+   scm: git
+   src: git+https://gitlab.com/robconnolly/ansible_role_checkmk_agent.git
+   version: master

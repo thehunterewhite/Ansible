@@ -1,0 +1,29 @@
+---
+- hosts: all
+  tasks:
+    - name: Create CI user
+      become: true
+      user:
+        name: ci
+        comment: CI User
+        groups: "{% if ansible_distribution == 'CentOS' or ansible_distribution == 'Archlinux' %}wheel{% else %}sudo{% endif %}"
+        append: true
+        password: "{{ password_hash }}"
+
+    - name: Create .ssh directory
+      become: true
+      file:
+        path: /home/ci/.ssh
+        state: directory
+        owner: ci
+        group: ci
+        mode: 0700
+
+    - name: Copy authorised keys
+      become: true
+      copy:
+        src: ci_authorized_keys
+        dest: /home/ci/.ssh/authorized_keys
+        owner: ci
+        group: ci
+        mode: 0600

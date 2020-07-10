@@ -1,0 +1,55 @@
+---
+- name: Include OS specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Define mariadb_packages
+  set_fact:
+    mariadb_packages: "{{ __mariadb_packages | list }}"
+  when: mariadb_packages is not defined
+
+- name: Define mariadb_daemon
+  set_fact:
+    mariadb_daemon: "{{ __mariadb_daemon }}"
+  when: mariadb_daemon is not defined
+
+- name: Define mariadb_python_librairies
+  set_fact:
+    mariadb_python_librairies: "{{ __mariadb_python_librairies }}"
+  when: mariadb_python_librairies is not defined
+
+- name: Define mariadb_config_file
+  set_fact:
+    mariadb_config_file: "{{ __mariadb_config_file }}"
+  when: mariadb_config_file is not defined
+
+- name: Define mariadb_config_include_dir
+  set_fact:
+    mariadb_config_include_dir: "{{ __mariadb_config_include_dir }}"
+  when: mariadb_config_include_dir is not defined
+
+- name: Define mariadb_socket
+  set_fact:
+    mariadb_socket: "{{ __mariadb_socket }}"
+  when: mariadb_socket is not defined
+
+- name: Define mariadb_pid_file
+  set_fact:
+    mariadb_pid_file: "{{ __mariadb_pid_file }}"
+  when: mariadb_pid_file is not defined
+
+- include_tasks: "setup-{{ ansible_os_family }}.yml"
+
+- name: Check if MySQL packages were installed.
+  set_fact:
+    mariadb_installed_packages: "{{ mariadb_deb_packages_is_installed is defined and mariadb_deb_packages_is_installed.changed }}"
+
+- include_tasks: configure.yml
+
+- include_tasks: secure-installation.yml
+
+- include_tasks: databases.yml
+
+- include_tasks: users.yml
+
+- include_tasks: dump.yml
+  when: mariadb_use_dump_script

@@ -1,9 +1,8 @@
 #################################################
-# DWhitehomeIO Ubuntu based VM/LXC bootstrap
-# Installs and configures base requirements for cluster
+# DO Community Playbooks: Initial Server Setup
 #################################################
 ---
-- hosts: dev-qemu, qemu, lxc
+- hosts: all
   become: true
   vars_files:
     - vars/default.yml
@@ -29,7 +28,7 @@
 # User + Key Setup
     - name: Create a new regular user with sudo privileges
       user:
-        name: service
+        name: "{{ create_user }}"
         state: present
         groups: wheel
         append: true
@@ -38,9 +37,9 @@
 
     - name: Set authorized key for remote user
       authorized_key:
-        user: service
+        user: "{{ create_user }}"
         state: present
-        key: "{{ lookup('file', lookup('env','HOME',) + '/.ssh/id_rsa.pub') }}"
+        key: "{{ copy_local_key }}"
 
     - name: Disable password authentication for root
       lineinfile:
@@ -54,32 +53,13 @@
       apt: update_cache=yes
 
     - name: Install required system packages
-      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
-      apt:
-        pkg:
-          - curl
-          - vim
-          - git
-          - ufw
-          - software-properties-common
-          - fail2ban
-          - sl
-          - htop
-          - vnstat
-          - ncdu
-          - cockpit
+      apt: name={{ sys_packages }} state=latest
 
 # UFW Setup
     - name: UFW - Allow SSH connections
       ufw:
         rule: allow
         name: OpenSSH
-
-    - name: Allow Cockpit Port
-      ufw:
-        rule: allow
-        port: '9090'
-        proto: tcp
 
     - name: UFW - Deny all other incoming traffic by default
       ufw:

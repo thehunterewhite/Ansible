@@ -1,0 +1,37 @@
+---
+- name: Check if Mariadb is already installed.
+  stat:
+    path: /etc/init.d/mysql
+  register: mariadb_installed
+
+- name: Update apt cache
+  apt:
+    update_cache: true
+  when: not mariadb_installed.stat.exists
+
+- name: Install Pip
+  package:
+    name: ["python3-pip", "python3-setuptools"]
+    state: present
+
+- name: Make sure pymysql is present
+  pip:
+    name: "pymysql"
+    state: present
+
+# - name: Install Python Librairies for MariaDB
+#   package:
+#    name: "{{ mariadb_python_librairies }}"
+#    state: present
+
+- name: Install MariaDB Packages
+  package:
+    name: "{{ mariadb_packages }}"
+    state: present
+  register: mariadb_deb_packages_is_installed
+  notify:
+    - Reload systemd
+    - Service started
+
+- name: Flush Handlers
+  meta: flush_handlers
