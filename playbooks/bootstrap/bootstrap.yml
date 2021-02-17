@@ -12,24 +12,24 @@
     - name: Install Prerequisites
       apt: name=aptitude update_cache=yes state=latest force_apt_get=yes
 
-# Sudo Group Setup
+  # Sudo Group Setup
     - name: Make sure we have a 'wheel' group
       group:
         name: wheel
         state: present
 
     - name: Allow 'wheel' group to have passwordless sudo
-      lineinfile:
+     lineinfile:
         path: /etc/sudoers
         state: present
         regexp: '^%wheel'
         line: '%wheel ALL=(ALL) NOPASSWD: ALL'
         validate: '/usr/sbin/visudo -cf %s'
 
-# User + Key Setup
+  # User + Key Setup
     - name: Create a new regular user with sudo privileges
       user:
-        name: sf-service
+        name: "{{ create_user }}"
         state: present
         groups: wheel
         append: true
@@ -38,9 +38,9 @@
 
     - name: Set authorized key for remote user
       authorized_key:
-        user: service
+        user: "{{ create_user }}"
         state: present
-        key: "{{ lookup('file', lookup('env','USR',) + '.vault/keys/ansible_rsa) }}"
+        key: "{{ copy_local_key }}"
 
     - name: Disable password authentication for root
       lineinfile:
@@ -48,7 +48,7 @@
         state: present
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin prohibit-password'
-
+        
 # Install Packages
     - name: Update apt
       apt: update_cache=yes
