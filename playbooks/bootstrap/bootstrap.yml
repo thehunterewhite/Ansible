@@ -40,7 +40,7 @@
       authorized_key:
         user: service
         state: present
-        key: "{{ lookup('file', lookup('env','HOME',) + '/.ssh/id_rsa.pub') }}"
+        key: "{{ lookup('file', lookup('env','HOME',) + '/usr/.vault/keys/ansible_rsa) }}"
 
     - name: Disable password authentication for root
       lineinfile:
