@@ -3,7 +3,7 @@
 # Installs and configures base requirements for cluster
 #################################################
 ---
-- hosts: dev-qemu, qemu, lxc
+- hosts: lxcontainers
   become: true
   vars_files:
     - vars/default.yml
@@ -29,7 +29,7 @@
 # User + Key Setup
     - name: Create a new regular user with sudo privileges
       user:
-        name: service
+        name: sf-service
         state: present
         groups: wheel
         append: true

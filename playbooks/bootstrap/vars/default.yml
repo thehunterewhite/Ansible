@@ -1,4 +1,4 @@
 ---
 #create_user: service
-copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/usr/.vault/keys/ansible_rsa.pub') }}"
 #sys_packages: [ 'curl', 'vim', 'git', 'ufw', 'software-properties-common', 'fail2ban', 'sl', 'htop', 'vnstat', 'ncdu']
