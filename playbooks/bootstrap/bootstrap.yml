@@ -38,7 +38,7 @@
 
     - name: Set authorized key for remote user
       authorized_key:
-        user: service
+        user: sf-service
         state: present
         key: "{{ lookup('file', lookup('env','HOME',) + '/.ssh/ansible_rsa.pub') }}"
 
